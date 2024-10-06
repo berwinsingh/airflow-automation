@@ -13,17 +13,31 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def extract_data():
+def get_airlines(airline_number:str=""):
     try:
-        data = supabase.table("airlines").select("*").execute()
-        return data
+        if airline_number:
+            flight_routes_data = supabase.table("flight_routes").select("*").eq("airline_number", airline_number).execute()
+        else:
+            flight_routes_data = supabase.table("flight_routes").select("*").execute()
+        
+        # The data is in the 'data' attribute of the response
+        data_list = flight_routes_data.data
+
+        for route in data_list:
+            route_id, airline_id, flight_number, departure_city, arrival_city = route
+            print(f"Flight Number: {flight_number}")
+            print(f"Departure: {departure_city}")
+            print(f"Arrival: {arrival_city}")
+            print("---")
+        
+        return data_list
     except APIError as e:
         print(f"An error occurred: {e}")
         return None
 
-if __name__ == "__main__":
-    result = extract_data()
-    if result:
-        print(result)
-    else:
-        print("Failed to extract data.")
+# Call the function and print the result
+result = get_airlines()
+if result:
+    print(f"Total routes: {len(result)}")
+else:
+    print("Failed to retrieve airline data.")
