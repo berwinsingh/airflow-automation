@@ -7,8 +7,19 @@ USER root
 
 USER airflow
 
-# Copy the DAG file into the container
-COPY dags/test_workflow.py /opt/airflow/dags/
+# Copy all files from the dags folder into the container
+COPY dags /opt/airflow/dags/
+
+# Copy requirements.txt and install dependencies
+COPY requirements.txt /opt/airflow/requirements.txt
+RUN pip install --no-cache-dir -r /opt/airflow/requirements.txt
+
+# Copy functions directory
+COPY functions /opt/airflow/functions/
+COPY .env /opt/airflow/.env
+
+# Add the /opt/airflow directory to the Python path
+ENV PYTHONPATH="${PYTHONPATH}:/opt/airflow"
 
 # Initialize the database and create the first user
 RUN airflow db init && \
@@ -18,7 +29,7 @@ RUN airflow db init && \
     --firstname Admin \
     --lastname User \
     --role Admin \
-    --email admin@example.com
+    --email berwin.singh48@gmail.com
 
 # Expose the web server port
 EXPOSE 8080
