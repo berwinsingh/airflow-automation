@@ -6,7 +6,7 @@ from functions.extract_data import get_airlines
 from datetime import timedelta
 
 def extract_airline_info():
-    airlines = get_airlines()
+    airlines = get_airlines("LH401")
     print(airlines)
     return airlines
 
@@ -21,7 +21,7 @@ with DAG(
     dag_id='get_airline_info',
     default_args=default_args,
     description='A simple DAG to extract airline information',
-    schedule_interval='@daily',
+    schedule_interval='@hourly',
     catchup=False
 ) as dag:
     extract_airline_info = PythonOperator(
