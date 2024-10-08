@@ -1,6 +1,7 @@
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from postgrest.exceptions import APIError
+import json
 import os
 
 load_dotenv()
@@ -14,6 +15,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_airlines(airline_number:str=""):
+    print("Airlines API called")
     try:
         if airline_number:
             flight_routes_data = supabase.table("flight_routes").select("*").eq("flight_number", airline_number).execute()
@@ -33,8 +35,33 @@ def get_airlines(airline_number:str=""):
         print(f"An error occurred: {e}")
         return None
 
-result = get_airlines()
-if result:
-    print(f"Total routes: {len(result)}")
-else:
-    print("Failed to retrieve airline data.")
+def save_to_supabase(data, **context):
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            ti = context['ti']
+            data = ti.xcom_pull(task_ids='get_airlines_task')
+    
+    if not isinstance(data, list):
+        data = [data]
+    
+    try:
+        formatted_data = []
+        for route in data:
+            formatted_data.append({
+                'flight_number': route.get('flight_number'),
+                'departure_city': route.get('departure_city'),
+                'arrival_city': route.get('arrival_city'),
+            })
+        
+        if not formatted_data:
+            print("No valid data to save")
+            return None
+        
+        result = supabase.table('airline_data').insert(formatted_data).execute()
+        print(f"Saved {len(formatted_data)} records to Supabase")
+        return result
+    except APIError as e:
+        print(f"An error occurred while saving to Supabase: {e}")
+        return None

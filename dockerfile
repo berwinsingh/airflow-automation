@@ -3,7 +3,7 @@ FROM apache/airflow
 USER root
 
 # Install any additional dependencies if needed
-# RUN apt-get update && apt-get install -y <package-name>
+RUN apt-get update && apt-get install -y jq
 
 USER airflow
 
