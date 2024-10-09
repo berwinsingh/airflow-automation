@@ -1,6 +1,7 @@
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.bash import BashOperator
+from airflow.operators.dummy import DummyOperator
 from datetime import datetime, timedelta
 from functions.extract_data import get_airlines, save_to_supabase, log_dag_execution
 
@@ -17,6 +18,15 @@ def log_dag_start(**context):
 def log_dag_end(**context):
     dag_id = context['dag'].dag_id
     log_dag_execution(dag_id, 'completed')
+
+def check_none(**context):
+    ti = context['ti']
+    data = ti.xcom_pull(task_ids='get_airlines_task')
+    #Using the task_id to determine the next step in the DAG
+    if data is None:
+        return 'end_dag'
+    else:
+        return 'save_airlines_task'
 
 with DAG(
     dag_id='get_airline_info',
@@ -57,7 +67,16 @@ with DAG(
         provide_context=True
     )
 
-    task_get_airlines >> start_log >> task_save_airlines >> task_hello >> end_log
+    check_data = BranchPythonOperator(
+        task_id='check_data',
+        python_callable=check_none,
+        provide_context=True
+    )
 
-# This line is just for testing, it won't affect the Airflow execution
-print("DAG has been loaded")
+    end_dag = DummyOperator(
+        task_id='end_dag'
+    )
+
+    task_get_airlines >> start_log >> check_data
+    check_data >> [task_save_airlines, end_dag]
+    task_save_airlines >> task_hello >> end_log
