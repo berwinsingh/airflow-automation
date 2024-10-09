@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from postgrest.exceptions import APIError
 import json
 import os
+from datetime import datetime
 
 load_dotenv()
 
@@ -64,4 +65,21 @@ def save_to_supabase(data, **context):
         return result
     except APIError as e:
         print(f"An error occurred while saving to Supabase: {e}")
+        return None
+
+def log_dag_execution(dag_id, status, task_id=None, message=None, additional_data=None):
+    try:
+        log_entry = {
+            'dag_id': dag_id,
+            'status': status,
+            'task_id': task_id,
+            'message': message,
+            'additional_data': json.dumps(additional_data) if additional_data else None,
+            'execution_time': datetime.utcnow().isoformat()
+        }
+        result = supabase.table('dag_logs').insert(log_entry).execute()
+        print(f"Logged DAG execution: {dag_id} - {status}")
+        return result
+    except APIError as e:
+        print(f"An error occurred while logging DAG execution: {e}")
         return None

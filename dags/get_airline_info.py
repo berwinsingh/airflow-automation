@@ -2,8 +2,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
 from datetime import datetime, timedelta
-from functions.extract_data import get_airlines, save_to_supabase
-from airflow.utils.log.logging_mixin import LoggingMixin
+from functions.extract_data import get_airlines, save_to_supabase, log_dag_execution
 
 default_args = {
     'owner': 'berwin_singh',
@@ -11,12 +10,13 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
 }
+def log_dag_start(**context):
+    dag_id = context['dag'].dag_id
+    log_dag_execution(dag_id, 'started')
 
-def print_xcom(**context):
-    ti = context['ti']
-    airlines_data = ti.xcom_pull(task_ids='get_airlines_task')
-    print(f"XCom data: {airlines_data}")
-    return airlines_data
+def log_dag_end(**context):
+    dag_id = context['dag'].dag_id
+    log_dag_execution(dag_id, 'completed')
 
 with DAG(
     dag_id='get_airline_info',
@@ -33,12 +33,6 @@ with DAG(
         do_xcom_push=True
     )
     
-    task_print_xcom = PythonOperator(
-        task_id='print_xcom_task',
-        python_callable=print_xcom,
-        provide_context=True
-    )
-    
     task_save_airlines = PythonOperator(
         task_id='save_airlines_task',
         python_callable=save_to_supabase,
@@ -51,7 +45,19 @@ with DAG(
         bash_command='echo "Hello, this is a bash task"'
     )
 
-    task_get_airlines >> task_print_xcom >> task_save_airlines >> task_hello
+    start_log = PythonOperator(
+        task_id='start_log',
+        python_callable=log_dag_start,
+        provide_context=True
+    )
+    
+    end_log = PythonOperator(
+        task_id='end_log',
+        python_callable=log_dag_end,
+        provide_context=True
+    )
+
+    task_get_airlines >> start_log >> task_save_airlines >> task_hello >> end_log
 
 # This line is just for testing, it won't affect the Airflow execution
 print("DAG has been loaded")
